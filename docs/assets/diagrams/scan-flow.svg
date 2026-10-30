@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="580" viewBox="0 0 1200 580" role="img" aria-labelledby="t d">
+  <title id="t">A scan, from request to alert</title>
+  <desc id="d">A scan is requested from the app, by an API key, by the scheduler or by a push. It is inserted as a queued row in the caller's transaction, claimed by a worker with FOR UPDATE SKIP LOCKED under the connection's limit, prepared by unsealing secrets and fetching files, run as one aggregate query plus one query per grouped check, and completed in one transaction that writes results, score, history, anomalies, the rollup and incidents only if the worker still owns the scan. Notifications are then delivered from an outbox with retries. A heartbeat renews the lease; a reaper re-queues scans whose worker stopped.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1d64c8"/></marker>
+    <marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#64748b"/></marker>
+  </defs>
+  <rect width="1200" height="580" rx="16" fill="#f8fafc"/>
+  <g font-family="Inter, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#334155">
+    <!-- row 1 -->
+    <rect x="40" y="60" width="250" height="150" rx="12" fill="#e2e8f0"/>
+    <circle cx="66" cy="88" r="13" fill="#1d64c8"/><text x="66" y="93" text-anchor="middle" fill="#ffffff" font-weight="650">1</text>
+    <text x="88" y="93" font-size="15" font-weight="650" fill="#0f172a">Request</text>
+    <text x="58" y="124">Scan now in the app</text>
+    <text x="58" y="144">API key: POST .../scans?wait=</text>
+    <text x="58" y="164">a schedule falls due</text>
+    <text x="58" y="184">records pushed by an app</text>
+
+    <rect x="330" y="60" width="250" height="150" rx="12" fill="#e2e8f0"/>
+    <circle cx="356" cy="88" r="13" fill="#1d64c8"/><text x="356" y="93" text-anchor="middle" fill="#ffffff" font-weight="650">2</text>
+    <text x="378" y="93" font-size="15" font-weight="650" fill="#0f172a">Enqueue</text>
+    <text x="348" y="124">INSERT a queued row in the</text>
+    <text x="348" y="144">caller's own transaction</text>
+    <text x="348" y="164">same idempotency key or slot:</text>
+    <text x="348" y="184">the existing scan comes back</text>
+
+    <rect x="620" y="60" width="250" height="150" rx="12" fill="#e2e8f0"/>
+    <circle cx="646" cy="88" r="13" fill="#1d64c8"/><text x="646" y="93" text-anchor="middle" fill="#ffffff" font-weight="650">3</text>
+    <text x="668" y="93" font-size="15" font-weight="650" fill="#0f172a">Claim</text>
+    <text x="638" y="124">FOR UPDATE SKIP LOCKED</text>
+    <text x="638" y="144">within max_concurrent_scans</text>
+    <text x="638" y="164">of the connection</text>
+    <text x="638" y="184">running, attempt + 1, lease</text>
+
+    <rect x="910" y="60" width="250" height="150" rx="12" fill="#e2e8f0"/>
+    <circle cx="936" cy="88" r="13" fill="#1d64c8"/><text x="936" y="93" text-anchor="middle" fill="#ffffff" font-weight="650">4</text>
+    <text x="958" y="93" font-size="15" font-weight="650" fill="#0f172a">Prepare</text>
+    <text x="928" y="124">unseal the password (KMS)</text>
+    <text x="928" y="144">download the file, fetch REST</text>
+    <text x="928" y="164">open the source read-only,</text>
+    <text x="928" y="184">or DuckDB, locked down</text>
+
+    <!-- row 2, right to left -->
+    <rect x="910" y="260" width="250" height="150" rx="12" fill="#1d64c8"/>
+    <circle cx="936" cy="288" r="13" fill="#ffffff"/><text x="936" y="293" text-anchor="middle" fill="#1d64c8" font-weight="650">5</text>
+    <text x="958" y="293" font-size="15" font-weight="650" fill="#ffffff">Run in the source</text>
+    <text x="928" y="324" fill="#dbeafe">1 aggregate query: row count</text>
+    <text x="928" y="344" fill="#dbeafe">and every row-level count</text>
+    <text x="928" y="364" fill="#dbeafe">1 query per grouped check</text>
+    <text x="928" y="384" fill="#dbeafe">failing samples, then profile</text>
+
+    <rect x="620" y="260" width="250" height="150" rx="12" fill="#e0e7ff"/>
+    <circle cx="646" cy="288" r="13" fill="#1d64c8"/><text x="646" y="293" text-anchor="middle" fill="#ffffff" font-weight="650">6</text>
+    <text x="668" y="293" font-size="15" font-weight="650" fill="#0f172a">Complete</text>
+    <text x="638" y="324">one transaction, only while</text>
+    <text x="638" y="344">(id, attempt, worker) match:</text>
+    <text x="638" y="364">results, score, history,</text>
+    <text x="638" y="384">anomalies, rollup, incidents</text>
+
+    <rect x="330" y="260" width="250" height="150" rx="12" fill="#fde5d9"/>
+    <circle cx="356" cy="288" r="13" fill="#eb6834"/><text x="356" y="293" text-anchor="middle" fill="#ffffff" font-weight="650">7</text>
+    <text x="378" y="293" font-size="15" font-weight="650" fill="#0f172a">Notify</text>
+    <text x="348" y="324" fill="#5c2a12">one outbox row per channel</text>
+    <text x="348" y="344" fill="#5c2a12">email, Slack, signed webhook</text>
+    <text x="348" y="364" fill="#5c2a12">retries from 1 to 60 minutes</text>
+    <text x="348" y="384" fill="#5c2a12">dashboard version bumped</text>
+
+    <rect x="40" y="260" width="250" height="150" rx="12" fill="#f1f5f9"/>
+    <text x="58" y="293" font-size="15" font-weight="650" fill="#0f172a">The caller, with ?wait=</text>
+    <text x="58" y="324">the API polls the scan row</text>
+    <text x="58" y="344">200 with every result when</text>
+    <text x="58" y="364">it finishes, 202 with its</text>
+    <text x="58" y="384">state when the wait ends</text>
+
+    <!-- safety net -->
+    <rect x="40" y="450" width="1120" height="96" rx="12" fill="#dcf3e8"/>
+    <text x="60" y="478" font-size="15" font-weight="650" fill="#0f172a">If a worker dies or stalls</text>
+    <text x="60" y="504" fill="#14532d">Heartbeat: renews the lease every third of LEASE_S and</text>
+    <text x="60" y="524" fill="#14532d">turns a cancel or a lost lease into a stop between queries</text>
+    <text x="440" y="504" fill="#14532d">Reaper: a scan whose lease expired is queued again,</text>
+    <text x="440" y="524" fill="#14532d">and failed with a reason after MAX_ATTEMPTS (3)</text>
+    <text x="800" y="504" fill="#14532d">A stale worker's writes match no row, so the</text>
+    <text x="800" y="524" fill="#14532d">retry's result is the only one recorded</text>
+  </g>
+  <g stroke="#1d64c8" stroke-width="2.5" fill="none">
+    <path d="M290 135H322" marker-end="url(#a)"/>
+    <path d="M580 135H612" marker-end="url(#a)"/>
+    <path d="M870 135H902" marker-end="url(#a)"/>
+    <path d="M1035 210V252" marker-end="url(#a)"/>
+    <path d="M910 335H878" marker-end="url(#a)"/>
+    <path d="M620 335H588" marker-end="url(#a)"/>
+  </g>
+  <g stroke="#64748b" stroke-width="2" fill="none" stroke-dasharray="5 5">
+    <path d="M165 210V252" marker-end="url(#m)"/>
+  </g>
+</svg>

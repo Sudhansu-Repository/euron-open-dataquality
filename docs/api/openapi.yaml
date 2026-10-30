@@ -1,0 +1,6224 @@
+openapi: 3.1.0
+info:
+  title: Euron Open DataQuality
+  description: "\nAPI of a self-hosted data quality platform: connect databases, upload files, point at\
+    \ REST\nendpoints or push records; profile them, run checks inside the source, score the result,\n\
+    keep the history, detect anomalies and alert.\n\n* People sign in with `POST /api/v1/auth/login` and\
+    \ send the session token as\n  `Authorization: Bearer <token>` (the dashboard uses an HttpOnly cookie\
+    \ instead).\n* Applications and CI use a project API key: `Authorization: Bearer dq_...` or\n  `X-API-Key:\
+    \ dq_...`. Scopes: `read`, `scan`, `push`, `manage`.\n* `POST /api/v1/projects/{project_id}/datasets/{dataset_id}/scans?wait=60`\
+    \ scans a dataset\n  and returns the result; `POST .../records` validates a batch of records.\n"
+  version: 0.1.0
+paths:
+  /api/v1/auth/login:
+    post:
+      tags:
+      - auth
+      summary: Sign in to the dashboard
+      operationId: login_api_v1_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignInOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - auth
+      summary: Sign out
+      description: 'Ends this session server-side too: the token is refused until it expires.'
+      operationId: logout_api_v1_auth_logout_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ack'
+  /api/v1/auth/session:
+    get:
+      tags:
+      - auth
+      summary: Who is signed in, if anyone
+      description: 'For pages anyone may open (the problem list): a signed-out visitor is a normal
+
+        answer here (200 with no user), not an error. ``/me`` stays strict (401) for API
+
+        clients that require a session.'
+      operationId: current_session_api_v1_auth_session_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionOut'
+  /api/v1/auth/me:
+    get:
+      tags:
+      - auth
+      summary: The signed-in user
+      operationId: me_api_v1_auth_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOut'
+  /api/v1/auth/password:
+    post:
+      tags:
+      - auth
+      summary: Change your password
+      operationId: password_api_v1_auth_password_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChange'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignInOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/users:
+    get:
+      tags:
+      - users
+      summary: List users (to add them to projects)
+      operationId: list_users_api_v1_users_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/UserOut'
+                type: array
+                title: Response List Users Api V1 Users Get
+    post:
+      tags:
+      - users
+      summary: Create a user (admins)
+      operationId: create_user_api_v1_users_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/users/{user_id}:
+    patch:
+      tags:
+      - users
+      summary: Update a user's name, role or access
+      operationId: update_user_api_v1_users__user_id__patch
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/org/public:
+    get:
+      tags:
+      - org
+      summary: Settings the sign-in page needs
+      operationId: public_settings_api_v1_org_public_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicSettings'
+  /api/v1/org/settings:
+    get:
+      tags:
+      - org
+      summary: Organisation settings
+      operationId: get_settings_api_v1_org_settings_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSettings'
+    patch:
+      tags:
+      - org
+      summary: Change organisation settings
+      operationId: update_settings_api_v1_org_settings_patch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsUpdate'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSettings'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/signup:
+    post:
+      tags:
+      - org
+      summary: Create an account (the first one is the admin) and sign in
+      operationId: signup_api_v1_auth_signup_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignInOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects:
+    get:
+      tags:
+      - projects
+      summary: Projects you can see
+      operationId: list_projects_api_v1_projects_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ProjectOut'
+                type: array
+                title: Response List Projects Api V1 Projects Get
+    post:
+      tags:
+      - projects
+      summary: Create a project (you become its owner)
+      operationId: create_project_api_v1_projects_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}:
+    get:
+      tags:
+      - projects
+      summary: One project
+      operationId: get_project_api_v1_projects__project_id__get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - projects
+      summary: Change a project's settings
+      operationId: update_project_api_v1_projects__project_id__patch
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - projects
+      summary: Delete a project and everything in it
+      operationId: delete_project_api_v1_projects__project_id__delete
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/members:
+    get:
+      tags:
+      - projects
+      summary: Project members
+      operationId: list_members_api_v1_projects__project_id__members_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemberOut'
+                title: Response List Members Api V1 Projects  Project Id  Members Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - projects
+      summary: Add a member
+      operationId: add_member_api_v1_projects__project_id__members_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberAdd'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/members/{user_id}:
+    patch:
+      tags:
+      - projects
+      summary: Change a member's role
+      operationId: update_member_api_v1_projects__project_id__members__user_id__patch
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ack'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - projects
+      summary: Remove a member
+      operationId: remove_member_api_v1_projects__project_id__members__user_id__delete
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/api-keys:
+    get:
+      tags:
+      - projects
+      summary: API keys
+      operationId: list_keys_api_v1_projects__project_id__api_keys_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKeyOut'
+                title: Response List Keys Api V1 Projects  Project Id  Api Keys Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - projects
+      summary: Create an API key (shown once)
+      operationId: create_key_api_v1_projects__project_id__api_keys_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyCreated'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/api-keys/{key_id}:
+    delete:
+      tags:
+      - projects
+      summary: Revoke an API key
+      operationId: revoke_key_api_v1_projects__project_id__api_keys__key_id__delete
+      parameters:
+      - name: key_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Key Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/connections:
+    get:
+      tags:
+      - connections
+      summary: Database connections
+      operationId: list_connections_api_v1_projects__project_id__connections_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConnectionOut'
+                title: Response List Connections Api V1 Projects  Project Id  Connections Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - connections
+      summary: Add a database server
+      operationId: create_connection_api_v1_projects__project_id__connections_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerConnection'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/connections/sqlite:
+    post:
+      tags:
+      - connections
+      summary: Add a SQLite database file
+      operationId: create_sqlite_api_v1_projects__project_id__connections_sqlite_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_create_sqlite_api_v1_projects__project_id__connections_sqlite_post'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/connections/test:
+    post:
+      tags:
+      - connections
+      summary: Test a connection before saving it
+      operationId: test_unsaved_api_v1_projects__project_id__connections_test_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerConnection'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/connections/{connection_id}:
+    get:
+      tags:
+      - connections
+      summary: One connection
+      operationId: get_connection_api_v1_projects__project_id__connections__connection_id__get
+      parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Connection Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - connections
+      summary: Change a connection
+      operationId: update_connection_api_v1_projects__project_id__connections__connection_id__patch
+      parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Connection Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - connections
+      summary: Delete a connection (no datasets may use it)
+      operationId: delete_connection_api_v1_projects__project_id__connections__connection_id__delete
+      parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Connection Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/connections/{connection_id}/test:
+    post:
+      tags:
+      - connections
+      summary: Test a saved connection
+      operationId: test_connection_api_v1_projects__project_id__connections__connection_id__test_post
+      parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Connection Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/connections/{connection_id}/tables:
+    get:
+      tags:
+      - connections
+      summary: Tables and views
+      operationId: list_tables_api_v1_projects__project_id__connections__connection_id__tables_get
+      parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Connection Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: schema
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TableOut'
+                title: Response List Tables Api V1 Projects  Project Id  Connections  Connection Id  Tables
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets:
+    get:
+      tags:
+      - datasets
+      summary: Datasets with their latest score
+      operationId: list_datasets_api_v1_projects__project_id__datasets_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DatasetOut'
+                title: Response List Datasets Api V1 Projects  Project Id  Datasets Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - datasets
+      summary: Add a table, query, REST or push dataset
+      operationId: create_dataset_api_v1_projects__project_id__datasets_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DatasetCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/upload:
+    post:
+      tags:
+      - datasets
+      summary: Add a dataset from a file
+      operationId: upload_dataset_api_v1_projects__project_id__datasets_upload_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_dataset_api_v1_projects__project_id__datasets_upload_post'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}:
+    get:
+      tags:
+      - datasets
+      summary: One dataset
+      operationId: get_dataset_api_v1_projects__project_id__datasets__dataset_id__get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - datasets
+      summary: Change a dataset, its filter or schedule
+      operationId: update_dataset_api_v1_projects__project_id__datasets__dataset_id__patch
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DatasetUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - datasets
+      summary: Delete a dataset, its checks and history
+      operationId: delete_dataset_api_v1_projects__project_id__datasets__dataset_id__delete
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/files:
+    get:
+      tags:
+      - datasets
+      summary: Uploaded versions and pushed batches
+      operationId: list_files_api_v1_projects__project_id__datasets__dataset_id__files_get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileOut'
+                title: Response List Files Api V1 Projects  Project Id  Datasets  Dataset Id  Files Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - datasets
+      summary: Upload a new version
+      operationId: upload_version_api_v1_projects__project_id__datasets__dataset_id__files_post
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_version_api_v1_projects__project_id__datasets__dataset_id__files_post'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/preview:
+    get:
+      tags:
+      - datasets
+      summary: The first rows, read live from the source
+      operationId: preview_api_v1_projects__project_id__datasets__dataset_id__preview_get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/profile:
+    get:
+      tags:
+      - datasets
+      summary: The latest column profile
+      operationId: profile_api_v1_projects__project_id__datasets__dataset_id__profile_get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/suggestions:
+    get:
+      tags:
+      - datasets
+      summary: Checks suggested from the profile
+      operationId: suggestions_api_v1_projects__project_id__datasets__dataset_id__suggestions_get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SuggestionOut'
+                title: Response Suggestions Api V1 Projects  Project Id  Datasets  Dataset Id  Suggestions
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/columns:
+    get:
+      tags:
+      - datasets
+      summary: The dataset's columns as its latest scan saw them
+      operationId: columns_api_v1_projects__project_id__datasets__dataset_id__columns_get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScanColumn'
+                title: Response Columns Api V1 Projects  Project Id  Datasets  Dataset Id  Columns Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/metrics:
+    get:
+      tags:
+      - datasets
+      summary: A metric's history
+      operationId: metrics_api_v1_projects__project_id__datasets__dataset_id__metrics_get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: metric
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(row_count|score|dimension|check_failed_pct|null_rate|distinct|mean)$
+          default: score
+          title: Metric
+      - name: key
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Key
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 3650
+          minimum: 1
+          default: 30
+          title: Days
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MetricSeries'
+                title: Response Metrics Api V1 Projects  Project Id  Datasets  Dataset Id  Metrics Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/records:
+    post:
+      tags:
+      - datasets
+      summary: Push records and get them validated
+      description: Stores the batch as the push dataset's newest version, scans it and waits up to `wait`
+        seconds for the result (0 returns at once with the queued scan).
+      operationId: push_records_api_v1_projects__project_id__datasets__dataset_id__records_post
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: wait
+        in: query
+        required: false
+        schema:
+          type: number
+          maximum: 120
+          minimum: 0
+          default: 30
+          title: Wait
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/checks:
+    get:
+      tags:
+      - checks
+      summary: A dataset's checks with their latest result
+      operationId: list_checks_api_v1_projects__project_id__datasets__dataset_id__checks_get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CheckOut'
+                title: Response List Checks Api V1 Projects  Project Id  Datasets  Dataset Id  Checks
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - checks
+      summary: Add a check
+      operationId: create_check_api_v1_projects__project_id__datasets__dataset_id__checks_post
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/checks/bulk:
+    post:
+      tags:
+      - checks
+      summary: Add many checks (accept suggestions)
+      operationId: bulk_api_v1_projects__project_id__datasets__dataset_id__checks_bulk_post
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/checks/yaml:
+    get:
+      tags:
+      - checks
+      summary: Export the checks as YAML (checks as code)
+      operationId: export_yaml_api_v1_projects__project_id__datasets__dataset_id__checks_yaml_get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - checks
+      summary: Apply a YAML file of checks (idempotent)
+      operationId: apply_yaml_api_v1_projects__project_id__datasets__dataset_id__checks_yaml_put
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/YamlIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/checks/draft:
+    post:
+      tags:
+      - checks
+      summary: Draft a check from plain language (optional AI)
+      operationId: draft_api_v1_projects__project_id__datasets__dataset_id__checks_draft_post
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DraftRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/checks/{check_id}:
+    patch:
+      tags:
+      - checks
+      summary: Change a check
+      operationId: update_check_api_v1_projects__project_id__datasets__dataset_id__checks__check_id__patch
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: check_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Check Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - checks
+      summary: Delete a check (its past results stay)
+      operationId: delete_check_api_v1_projects__project_id__datasets__dataset_id__checks__check_id__delete
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: check_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Check Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/scans:
+    post:
+      tags:
+      - scans
+      summary: Scan a dataset now
+      description: Queues a scan. With `wait` (seconds, up to 300) the response comes when it finishes
+        or the wait runs out, so a CI job can trigger and read the result in one call.
+      operationId: create_scan_api_v1_projects__project_id__datasets__dataset_id__scans_post
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: wait
+        in: query
+        required: false
+        schema:
+          type: number
+          maximum: 300
+          minimum: 0
+          default: 0
+          title: Wait
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/ScanRequest'
+              - type: 'null'
+              title: Body
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/scans:
+    get:
+      tags:
+      - scans
+      summary: Scans, newest first
+      operationId: list_scans_api_v1_projects__project_id__scans_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: dataset_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Dataset Id
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^(queued|running|succeeded|failed|cancelled)$
+          - type: 'null'
+          title: Status
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_ScanOut_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/scans/{scan_id}:
+    get:
+      tags:
+      - scans
+      summary: A scan with every check result
+      operationId: get_scan_api_v1_projects__project_id__scans__scan_id__get
+      parameters:
+      - name: scan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scan Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/scans/{scan_id}/cancel:
+    post:
+      tags:
+      - scans
+      summary: Cancel a queued or running scan
+      operationId: cancel_scan_api_v1_projects__project_id__scans__scan_id__cancel_post
+      parameters:
+      - name: scan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scan Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/scans/{scan_id}/wait:
+    get:
+      tags:
+      - scans
+      summary: Wait for a scan to finish
+      operationId: wait_scan_api_v1_projects__project_id__scans__scan_id__wait_get
+      parameters:
+      - name: scan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scan Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          maximum: 300
+          minimum: 1
+          default: 30
+          title: Timeout
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/scans/{scan_id}/report.csv:
+    get:
+      tags:
+      - scans
+      summary: The scan as CSV
+      operationId: scan_csv_api_v1_projects__project_id__scans__scan_id__report_csv_get
+      parameters:
+      - name: scan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scan Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/scans/{scan_id}/report.pdf:
+    get:
+      tags:
+      - scans
+      summary: The scan as PDF
+      operationId: scan_pdf_api_v1_projects__project_id__scans__scan_id__report_pdf_get
+      parameters:
+      - name: scan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scan Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/datasets/{dataset_id}/history.csv:
+    get:
+      tags:
+      - scans
+      summary: Every scan of a dataset as CSV
+      operationId: history_csv_api_v1_projects__project_id__datasets__dataset_id__history_csv_get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/report.pdf:
+    get:
+      tags:
+      - scans
+      summary: Project summary as PDF
+      operationId: project_pdf_api_v1_projects__project_id__report_pdf_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/anomalies:
+    get:
+      tags:
+      - scans
+      summary: Anomalies and schema changes, newest first
+      operationId: list_anomalies_api_v1_projects__project_id__anomalies_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: dataset_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Dataset Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AnomalyOut'
+                title: Response List Anomalies Api V1 Projects  Project Id  Anomalies Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/alert-channels:
+    get:
+      tags:
+      - alerts
+      summary: Where alerts go
+      operationId: list_channels_api_v1_projects__project_id__alert_channels_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChannelOut'
+                title: Response List Channels Api V1 Projects  Project Id  Alert Channels Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - alerts
+      summary: Add an email, Slack or webhook channel
+      operationId: create_channel_api_v1_projects__project_id__alert_channels_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelCreated'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/alert-channels/{channel_id}:
+    patch:
+      tags:
+      - alerts
+      summary: Change a channel
+      operationId: update_channel_api_v1_projects__project_id__alert_channels__channel_id__patch
+      parameters:
+      - name: channel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Channel Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - alerts
+      summary: Delete a channel
+      operationId: delete_channel_api_v1_projects__project_id__alert_channels__channel_id__delete
+      parameters:
+      - name: channel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Channel Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/alert-channels/{channel_id}/test:
+    post:
+      tags:
+      - alerts
+      summary: Send a test message now
+      operationId: test_channel_api_v1_projects__project_id__alert_channels__channel_id__test_post
+      parameters:
+      - name: channel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Channel Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ack'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/alert-rules:
+    get:
+      tags:
+      - alerts
+      summary: When to alert
+      operationId: list_rules_api_v1_projects__project_id__alert_rules_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RuleOut'
+                title: Response List Rules Api V1 Projects  Project Id  Alert Rules Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - alerts
+      summary: Add an alert rule
+      operationId: create_rule_api_v1_projects__project_id__alert_rules_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RuleIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/alert-rules/{rule_id}:
+    patch:
+      tags:
+      - alerts
+      summary: Change an alert rule
+      operationId: update_rule_api_v1_projects__project_id__alert_rules__rule_id__patch
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Rule Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RuleUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - alerts
+      summary: Delete an alert rule and its incidents
+      operationId: delete_rule_api_v1_projects__project_id__alert_rules__rule_id__delete
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Rule Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/incidents:
+    get:
+      tags:
+      - alerts
+      summary: Incidents, most recent first
+      operationId: list_incidents_api_v1_projects__project_id__incidents_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^(active|open|acknowledged|resolved)$
+          - type: 'null'
+          title: Status
+      - name: dataset_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Dataset Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IncidentOut'
+                title: Response List Incidents Api V1 Projects  Project Id  Incidents Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/incidents/{incident_id}:
+    get:
+      tags:
+      - alerts
+      summary: An incident and its notifications
+      operationId: get_incident_api_v1_projects__project_id__incidents__incident_id__get
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Incident Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/incidents/{incident_id}/acknowledge:
+    post:
+      tags:
+      - alerts
+      summary: Acknowledge an incident
+      operationId: acknowledge_api_v1_projects__project_id__incidents__incident_id__acknowledge_post
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Incident Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/incidents/{incident_id}/resolve:
+    post:
+      tags:
+      - alerts
+      summary: Resolve an incident by hand
+      operationId: resolve_api_v1_projects__project_id__incidents__incident_id__resolve_post
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Incident Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/incidents/{incident_id}/explain:
+    post:
+      tags:
+      - alerts
+      summary: Explain an incident (optional AI)
+      operationId: explain_api_v1_projects__project_id__incidents__incident_id__explain_post
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Incident Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExplainOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/projects/{project_id}/dashboard:
+    get:
+      tags:
+      - dashboard
+      summary: Score, counts, dimensions, trend and recent issues
+      operationId: dashboard_api_v1_projects__project_id__dashboard_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/audit:
+    get:
+      tags:
+      - audit
+      summary: Append-only audit log
+      operationId: list_audit_api_v1_audit_get
+      parameters:
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: action
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Action
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_AuditOut_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /healthz:
+    get:
+      tags:
+      - system
+      summary: Liveness
+      operationId: healthz_healthz_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Healthz Healthz Get
+  /health:
+    get:
+      tags:
+      - system
+      summary: Liveness (alias of /healthz)
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+  /readyz:
+    get:
+      tags:
+      - system
+      summary: 'Readiness: Postgres reachable (Redis reported too)'
+      operationId: readyz_readyz_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Readyz Readyz Get
+  /api/v1/system:
+    get:
+      tags:
+      - system
+      - system
+      summary: System
+      operationId: system_api_v1_system_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemInfo'
+components:
+  schemas:
+    Ack:
+      properties:
+        ok:
+          type: boolean
+          title: Ok
+          default: true
+        message:
+          type: string
+          title: Message
+          default: ''
+      type: object
+      title: Ack
+    AdminSettings:
+      properties:
+        site_name:
+          type: string
+          title: Site Name
+        allow_signup:
+          type: boolean
+          title: Allow Signup
+        ai_enabled:
+          type: boolean
+          title: Ai Enabled
+        ai_base_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ai Base Url
+        ai_model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ai Model
+        ai_has_key:
+          type: boolean
+          title: Ai Has Key
+      type: object
+      required:
+      - site_name
+      - allow_signup
+      - ai_enabled
+      - ai_base_url
+      - ai_model
+      - ai_has_key
+      title: AdminSettings
+    AnomalyOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        dataset_id:
+          type: string
+          format: uuid
+          title: Dataset Id
+        scan_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Scan Id
+        kind:
+          type: string
+          title: Kind
+        metric:
+          type: string
+          title: Metric
+        key:
+          type: string
+          title: Key
+        value:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Value
+        expected:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Expected
+        z:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Z
+        direction:
+          type: string
+          title: Direction
+        explanation:
+          type: string
+          title: Explanation
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - dataset_id
+      - scan_id
+      - kind
+      - metric
+      - key
+      - value
+      - expected
+      - z
+      - direction
+      - explanation
+      - created_at
+      title: AnomalyOut
+    ApiKeyCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Name
+        scopes:
+          items:
+            type: string
+            enum:
+            - read
+            - scan
+            - push
+            - manage
+          type: array
+          minItems: 1
+          title: Scopes
+      type: object
+      required:
+      - name
+      title: ApiKeyCreate
+    ApiKeyCreated:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        prefix:
+          type: string
+          title: Prefix
+        scopes:
+          items:
+            type: string
+          type: array
+          title: Scopes
+        last_used_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Used At
+        revoked_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Revoked At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        key:
+          type: string
+          title: Key
+          description: Shown once. Store it now; only a hash is kept
+      type: object
+      required:
+      - id
+      - name
+      - prefix
+      - scopes
+      - last_used_at
+      - revoked_at
+      - created_at
+      - key
+      title: ApiKeyCreated
+    ApiKeyOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        prefix:
+          type: string
+          title: Prefix
+        scopes:
+          items:
+            type: string
+          type: array
+          title: Scopes
+        last_used_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Used At
+        revoked_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Revoked At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - name
+      - prefix
+      - scopes
+      - last_used_at
+      - revoked_at
+      - created_at
+      title: ApiKeyOut
+    AuditOut:
+      properties:
+        id:
+          type: integer
+          title: Id
+        at:
+          type: string
+          format: date-time
+          title: At
+        actor_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Actor Id
+        actor_email:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Actor Email
+        action:
+          type: string
+          title: Action
+        target_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Target Type
+        target_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Target Id
+        details:
+          additionalProperties: true
+          type: object
+          title: Details
+        ip:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ip
+      type: object
+      required:
+      - id
+      - at
+      - actor_id
+      - actor_email
+      - action
+      - target_type
+      - target_id
+      - details
+      - ip
+      title: AuditOut
+    Body_create_sqlite_api_v1_projects__project_id__connections_sqlite_post:
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Name
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+      type: object
+      required:
+      - name
+      - file
+      title: Body_create_sqlite_api_v1_projects__project_id__connections_sqlite_post
+    Body_upload_dataset_api_v1_projects__project_id__datasets_upload_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+          description: CSV, TSV, JSON, NDJSON, Parquet or Excel (.xlsx)
+        name:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Name
+        sheet:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Sheet
+        delimiter:
+          anyOf:
+          - type: string
+            maxLength: 4
+          - type: 'null'
+          title: Delimiter
+      type: object
+      required:
+      - file
+      title: Body_upload_dataset_api_v1_projects__project_id__datasets_upload_post
+    Body_upload_version_api_v1_projects__project_id__datasets__dataset_id__files_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+      type: object
+      required:
+      - file
+      title: Body_upload_version_api_v1_projects__project_id__datasets__dataset_id__files_post
+    BulkCreate:
+      properties:
+        checks:
+          items:
+            $ref: '#/components/schemas/CheckIn'
+          type: array
+          maxItems: 500
+          minItems: 1
+          title: Checks
+        origin:
+          type: string
+          pattern: ^(manual|suggested|ai|yaml)$
+          title: Origin
+          default: manual
+      type: object
+      required:
+      - checks
+      title: BulkCreate
+    BulkResult:
+      properties:
+        created:
+          type: integer
+          title: Created
+        updated:
+          type: integer
+          title: Updated
+          default: 0
+        skipped:
+          items:
+            type: string
+          type: array
+          title: Skipped
+        removed:
+          items:
+            type: string
+          type: array
+          title: Removed
+        checks:
+          items:
+            $ref: '#/components/schemas/CheckOut'
+          type: array
+          title: Checks
+      type: object
+      required:
+      - created
+      title: BulkResult
+    ChannelCreated:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        kind:
+          type: string
+          title: Kind
+        recipients:
+          items:
+            type: string
+          type: array
+          title: Recipients
+        target_hint:
+          type: string
+          title: Target Hint
+        enabled:
+          type: boolean
+          title: Enabled
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        signing_secret:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Signing Secret
+          description: 'Webhook channels: shown once'
+      type: object
+      required:
+      - id
+      - name
+      - kind
+      - target_hint
+      - enabled
+      - created_at
+      title: ChannelCreated
+    ChannelIn:
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Name
+        kind:
+          type: string
+          enum:
+          - email
+          - slack
+          - webhook
+          title: Kind
+        recipients:
+          items:
+            type: string
+            maxLength: 320
+            pattern: ^[^@\s]+@[^@\s]+\.[^@\s]+$
+          type: array
+          maxItems: 50
+          title: Recipients
+        url:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Url
+        secret:
+          anyOf:
+          - type: string
+            maxLength: 200
+            minLength: 16
+          - type: 'null'
+          title: Secret
+        enabled:
+          type: boolean
+          title: Enabled
+          default: true
+      type: object
+      required:
+      - name
+      - kind
+      title: ChannelIn
+    ChannelOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        kind:
+          type: string
+          title: Kind
+        recipients:
+          items:
+            type: string
+          type: array
+          title: Recipients
+        target_hint:
+          type: string
+          title: Target Hint
+        enabled:
+          type: boolean
+          title: Enabled
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - name
+      - kind
+      - target_hint
+      - enabled
+      - created_at
+      title: ChannelOut
+    ChannelUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 120
+            minLength: 1
+          - type: 'null'
+          title: Name
+        recipients:
+          anyOf:
+          - items:
+              type: string
+              maxLength: 320
+              pattern: ^[^@\s]+@[^@\s]+\.[^@\s]+$
+            type: array
+            maxItems: 50
+          - type: 'null'
+          title: Recipients
+        url:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Url
+        secret:
+          anyOf:
+          - type: string
+            maxLength: 200
+            minLength: 16
+          - type: 'null'
+          title: Secret
+        enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Enabled
+      type: object
+      title: ChannelUpdate
+    CheckIn:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 160
+          - type: 'null'
+          title: Name
+          description: Defaults to a name built from the type and column
+        description:
+          type: string
+          maxLength: 2000
+          title: Description
+          default: ''
+        type:
+          $ref: '#/components/schemas/CheckType'
+        column:
+          anyOf:
+          - type: string
+            maxLength: 128
+          - type: 'null'
+          title: Column
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+        filter_sql:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Filter Sql
+        severity:
+          $ref: '#/components/schemas/Severity'
+          default: error
+        tolerance:
+          $ref: '#/components/schemas/Tolerance'
+        dimension:
+          anyOf:
+          - $ref: '#/components/schemas/Dimension'
+          - type: 'null'
+        enabled:
+          type: boolean
+          title: Enabled
+          default: true
+      type: object
+      required:
+      - type
+      title: CheckIn
+    CheckOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        dataset_id:
+          type: string
+          format: uuid
+          title: Dataset Id
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        type:
+          type: string
+          title: Type
+        column:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Column
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+        filter_sql:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Filter Sql
+        severity:
+          type: string
+          title: Severity
+        tolerance:
+          additionalProperties: true
+          type: object
+          title: Tolerance
+        dimension:
+          type: string
+          title: Dimension
+        enabled:
+          type: boolean
+          title: Enabled
+        origin:
+          type: string
+          title: Origin
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        last:
+          anyOf:
+          - $ref: '#/components/schemas/LastResult'
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - dataset_id
+      - name
+      - description
+      - type
+      - column
+      - params
+      - filter_sql
+      - severity
+      - tolerance
+      - dimension
+      - enabled
+      - origin
+      - created_at
+      - updated_at
+      title: CheckOut
+    CheckType:
+      type: string
+      enum:
+      - not_null
+      - unique
+      - duplicate_rows
+      - schema
+      - type
+      - range
+      - pattern
+      - accepted_values
+      - length
+      - freshness
+      - row_count
+      - referential
+      - compare
+      - format_consistency
+      - outliers
+      - custom_sql
+      title: CheckType
+    CheckUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 160
+            minLength: 1
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Description
+        column:
+          anyOf:
+          - type: string
+            maxLength: 128
+          - type: 'null'
+          title: Column
+        params:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Params
+        filter_sql:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Filter Sql
+        severity:
+          anyOf:
+          - $ref: '#/components/schemas/Severity'
+          - type: 'null'
+        tolerance:
+          anyOf:
+          - $ref: '#/components/schemas/Tolerance'
+          - type: 'null'
+        dimension:
+          anyOf:
+          - $ref: '#/components/schemas/Dimension'
+          - type: 'null'
+        enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Enabled
+      type: object
+      title: CheckUpdate
+    ColumnProfileOut:
+      properties:
+        name:
+          type: string
+          title: Name
+        logical:
+          type: string
+          title: Logical
+        native:
+          type: string
+          title: Native
+        rows:
+          type: integer
+          title: Rows
+        nulls:
+          type: integer
+          title: Nulls
+        blanks:
+          type: integer
+          title: Blanks
+        distinct:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Distinct
+        min:
+          title: Min
+        max:
+          title: Max
+        mean:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Mean
+        stddev:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Stddev
+        quantiles:
+          additionalProperties: true
+          type: object
+          title: Quantiles
+        histogram:
+          items:
+            $ref: '#/components/schemas/HistogramBin'
+          type: array
+          title: Histogram
+        top_values:
+          items:
+            $ref: '#/components/schemas/ValueCount'
+          type: array
+          title: Top Values
+        shapes:
+          items:
+            $ref: '#/components/schemas/ShapeCount'
+          type: array
+          title: Shapes
+        min_length:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Min Length
+        max_length:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Length
+        mean_length:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Mean Length
+        semantic:
+          additionalProperties:
+            type: number
+          type: object
+          title: Semantic
+      type: object
+      required:
+      - name
+      - logical
+      - native
+      - rows
+      - nulls
+      - blanks
+      - distinct
+      - mean
+      - stddev
+      - quantiles
+      - histogram
+      - top_values
+      - shapes
+      - min_length
+      - max_length
+      - mean_length
+      - semantic
+      title: ColumnProfileOut
+    ConnectionOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        kind:
+          type: string
+          title: Kind
+        host:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Host
+        port:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Port
+        database:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Database
+        username:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Username
+        ssl_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ssl Mode
+        default_schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Default Schema
+        has_password:
+          type: boolean
+          title: Has Password
+          default: false
+        file_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: File Name
+        file_size:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: File Size
+        max_concurrent_scans:
+          type: integer
+          title: Max Concurrent Scans
+        last_tested_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Tested At
+        last_test_ok:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Last Test Ok
+        last_test_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Test Message
+        server_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Server Version
+        datasets:
+          type: integer
+          title: Datasets
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - name
+      - kind
+      - max_concurrent_scans
+      - last_tested_at
+      - last_test_ok
+      - last_test_message
+      - server_version
+      - created_at
+      title: ConnectionOut
+    ConnectionUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 120
+            minLength: 1
+          - type: 'null'
+          title: Name
+        host:
+          anyOf:
+          - type: string
+            maxLength: 255
+            minLength: 1
+          - type: 'null'
+          title: Host
+        port:
+          anyOf:
+          - type: integer
+            maximum: 65535.0
+            minimum: 1.0
+          - type: 'null'
+          title: Port
+        database:
+          anyOf:
+          - type: string
+            maxLength: 128
+            minLength: 1
+          - type: 'null'
+          title: Database
+        username:
+          anyOf:
+          - type: string
+            maxLength: 128
+            minLength: 1
+          - type: 'null'
+          title: Username
+        password:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Password
+        ssl_mode:
+          anyOf:
+          - type: string
+            enum:
+            - disable
+            - prefer
+            - require
+            - verify-full
+          - type: 'null'
+          title: Ssl Mode
+        default_schema:
+          anyOf:
+          - type: string
+            maxLength: 128
+          - type: 'null'
+          title: Default Schema
+        max_concurrent_scans:
+          anyOf:
+          - type: integer
+            maximum: 20.0
+            minimum: 1.0
+          - type: 'null'
+          title: Max Concurrent Scans
+      type: object
+      title: ConnectionUpdate
+    Dashboard:
+      properties:
+        score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Score
+        score_change:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Score Change
+        datasets:
+          type: integer
+          title: Datasets
+        datasets_scanned:
+          type: integer
+          title: Datasets Scanned
+        records_scanned:
+          type: integer
+          title: Records Scanned
+        failed_checks:
+          type: integer
+          title: Failed Checks
+        duplicate_records:
+          type: integer
+          title: Duplicate Records
+        open_incidents:
+          type: integer
+          title: Open Incidents
+        scans_24h:
+          type: integer
+          title: Scans 24H
+        dimensions:
+          additionalProperties:
+            anyOf:
+            - type: number
+            - type: 'null'
+          type: object
+          title: Dimensions
+        trend:
+          items:
+            $ref: '#/components/schemas/TrendPoint'
+          type: array
+          title: Trend
+        issues:
+          items:
+            $ref: '#/components/schemas/Issue'
+          type: array
+          title: Issues
+        worst:
+          items:
+            $ref: '#/components/schemas/DatasetScore'
+          type: array
+          title: Worst
+        generated_at:
+          type: string
+          format: date-time
+          title: Generated At
+      type: object
+      required:
+      - score
+      - score_change
+      - datasets
+      - datasets_scanned
+      - records_scanned
+      - failed_checks
+      - duplicate_records
+      - open_incidents
+      - scans_24h
+      - dimensions
+      - trend
+      - issues
+      - worst
+      - generated_at
+      title: Dashboard
+    DatasetCreate:
+      properties:
+        description:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Description
+        filter_sql:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Filter Sql
+        masked_columns:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 200
+          - type: 'null'
+          title: Masked Columns
+        tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 20
+          - type: 'null'
+          title: Tags
+        profile_enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Profile Enabled
+        scan_timeout_s:
+          anyOf:
+          - type: integer
+            maximum: 86400.0
+            minimum: 10.0
+          - type: 'null'
+          title: Scan Timeout S
+        schedule_cron:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Schedule Cron
+        schedule_tz:
+          anyOf:
+          - type: string
+            maxLength: 64
+          - type: 'null'
+          title: Schedule Tz
+        schedule_enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Schedule Enabled
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Name
+        kind:
+          type: string
+          enum:
+          - table
+          - query
+          - rest
+          - push
+          title: Kind
+        connection_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Connection Id
+        schema_name:
+          anyOf:
+          - type: string
+            maxLength: 128
+          - type: 'null'
+          title: Schema Name
+        table_name:
+          anyOf:
+          - type: string
+            maxLength: 128
+          - type: 'null'
+          title: Table Name
+        query_sql:
+          anyOf:
+          - type: string
+            maxLength: 20000
+          - type: 'null'
+          title: Query Sql
+        rest:
+          anyOf:
+          - $ref: '#/components/schemas/RestOptions'
+          - type: 'null'
+        rest_headers:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+            maxProperties: 20
+          - type: 'null'
+          title: Rest Headers
+      type: object
+      required:
+      - name
+      - kind
+      title: DatasetCreate
+    DatasetOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        name:
+          type: string
+          title: Name
+        slug:
+          type: string
+          title: Slug
+        description:
+          type: string
+          title: Description
+        kind:
+          type: string
+          title: Kind
+        connection_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Connection Id
+        connection_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Name
+        file_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: File Name
+        file_format:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: File Format
+        schema_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema Name
+        table_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Table Name
+        query_sql:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Query Sql
+        options:
+          additionalProperties: true
+          type: object
+          title: Options
+        has_secret:
+          type: boolean
+          title: Has Secret
+          default: false
+        current_file_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Current File Id
+        filter_sql:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Filter Sql
+        masked_columns:
+          items:
+            type: string
+          type: array
+          title: Masked Columns
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+        profile_enabled:
+          type: boolean
+          title: Profile Enabled
+        scan_timeout_s:
+          type: integer
+          title: Scan Timeout S
+        schedule_cron:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schedule Cron
+        schedule_tz:
+          type: string
+          title: Schedule Tz
+        schedule_enabled:
+          type: boolean
+          title: Schedule Enabled
+        next_run_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Next Run At
+        last_scan_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Last Scan Id
+        last_scan_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Scan At
+        last_status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Status
+        last_score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Score
+        last_row_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Last Row Count
+        last_failed_checks:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Last Failed Checks
+        checks:
+          type: integer
+          title: Checks
+          default: 0
+        open_incidents:
+          type: integer
+          title: Open Incidents
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - project_id
+      - name
+      - slug
+      - description
+      - kind
+      - connection_id
+      - schema_name
+      - table_name
+      - query_sql
+      - options
+      - current_file_id
+      - filter_sql
+      - masked_columns
+      - tags
+      - profile_enabled
+      - scan_timeout_s
+      - schedule_cron
+      - schedule_tz
+      - schedule_enabled
+      - next_run_at
+      - last_scan_id
+      - last_scan_at
+      - last_status
+      - last_score
+      - last_row_count
+      - last_failed_checks
+      - created_at
+      - updated_at
+      title: DatasetOut
+    DatasetScore:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        kind:
+          type: string
+          title: Kind
+        score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Score
+        status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+        row_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Row Count
+        failed_checks:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Failed Checks
+        last_scan_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Scan At
+      type: object
+      required:
+      - id
+      - name
+      - kind
+      - score
+      - status
+      - row_count
+      - failed_checks
+      - last_scan_at
+      title: DatasetScore
+    DatasetUpdate:
+      properties:
+        description:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Description
+        filter_sql:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Filter Sql
+        masked_columns:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 200
+          - type: 'null'
+          title: Masked Columns
+        tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 20
+          - type: 'null'
+          title: Tags
+        profile_enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Profile Enabled
+        scan_timeout_s:
+          anyOf:
+          - type: integer
+            maximum: 86400.0
+            minimum: 10.0
+          - type: 'null'
+          title: Scan Timeout S
+        schedule_cron:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Schedule Cron
+        schedule_tz:
+          anyOf:
+          - type: string
+            maxLength: 64
+          - type: 'null'
+          title: Schedule Tz
+        schedule_enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Schedule Enabled
+        name:
+          anyOf:
+          - type: string
+            maxLength: 120
+            minLength: 1
+          - type: 'null'
+          title: Name
+        schema_name:
+          anyOf:
+          - type: string
+            maxLength: 128
+          - type: 'null'
+          title: Schema Name
+        table_name:
+          anyOf:
+          - type: string
+            maxLength: 128
+          - type: 'null'
+          title: Table Name
+        query_sql:
+          anyOf:
+          - type: string
+            maxLength: 20000
+          - type: 'null'
+          title: Query Sql
+        rest:
+          anyOf:
+          - $ref: '#/components/schemas/RestOptions'
+          - type: 'null'
+        rest_headers:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+            maxProperties: 20
+          - type: 'null'
+          title: Rest Headers
+        options:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Options
+      type: object
+      title: DatasetUpdate
+    Dimension:
+      type: string
+      enum:
+      - completeness
+      - validity
+      - consistency
+      - uniqueness
+      - freshness
+      - volume
+      title: Dimension
+    DraftOut:
+      properties:
+        check:
+          $ref: '#/components/schemas/CheckIn'
+        explanation:
+          type: string
+          title: Explanation
+      type: object
+      required:
+      - check
+      - explanation
+      title: DraftOut
+    DraftRequest:
+      properties:
+        prompt:
+          type: string
+          maxLength: 1000
+          minLength: 3
+          title: Prompt
+      type: object
+      required:
+      - prompt
+      title: DraftRequest
+    ExplainOut:
+      properties:
+        explanation:
+          type: string
+          title: Explanation
+        model:
+          type: string
+          title: Model
+      type: object
+      required:
+      - explanation
+      - model
+      title: ExplainOut
+    FileOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        version:
+          type: integer
+          title: Version
+        filename:
+          type: string
+          title: Filename
+        format:
+          type: string
+          title: Format
+        size:
+          type: integer
+          title: Size
+        sha256:
+          type: string
+          title: Sha256
+        records:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Records
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - version
+      - filename
+      - format
+      - size
+      - sha256
+      - records
+      - created_at
+      title: FileOut
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    HistogramBin:
+      properties:
+        low:
+          type: number
+          title: Low
+        high:
+          type: number
+          title: High
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - low
+      - high
+      - count
+      title: HistogramBin
+    IncidentDetail:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        dataset_id:
+          type: string
+          format: uuid
+          title: Dataset Id
+        dataset_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dataset Name
+        rule_id:
+          type: string
+          format: uuid
+          title: Rule Id
+        rule_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rule Name
+        rule_kind:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rule Kind
+        status:
+          type: string
+          title: Status
+        severity:
+          type: string
+          title: Severity
+        title:
+          type: string
+          title: Title
+        detail:
+          type: string
+          title: Detail
+        occurrences:
+          type: integer
+          title: Occurrences
+        first_scan_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: First Scan Id
+        last_scan_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Last Scan Id
+        opened_at:
+          type: string
+          format: date-time
+          title: Opened At
+        last_seen_at:
+          type: string
+          format: date-time
+          title: Last Seen At
+        acknowledged_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Acknowledged At
+        resolved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Resolved At
+        resolution:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resolution
+        notifications:
+          items:
+            $ref: '#/components/schemas/NotificationOut'
+          type: array
+          title: Notifications
+      type: object
+      required:
+      - id
+      - dataset_id
+      - rule_id
+      - status
+      - severity
+      - title
+      - detail
+      - occurrences
+      - first_scan_id
+      - last_scan_id
+      - opened_at
+      - last_seen_at
+      - acknowledged_at
+      - resolved_at
+      - resolution
+      title: IncidentDetail
+    IncidentOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        dataset_id:
+          type: string
+          format: uuid
+          title: Dataset Id
+        dataset_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dataset Name
+        rule_id:
+          type: string
+          format: uuid
+          title: Rule Id
+        rule_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rule Name
+        rule_kind:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rule Kind
+        status:
+          type: string
+          title: Status
+        severity:
+          type: string
+          title: Severity
+        title:
+          type: string
+          title: Title
+        detail:
+          type: string
+          title: Detail
+        occurrences:
+          type: integer
+          title: Occurrences
+        first_scan_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: First Scan Id
+        last_scan_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Last Scan Id
+        opened_at:
+          type: string
+          format: date-time
+          title: Opened At
+        last_seen_at:
+          type: string
+          format: date-time
+          title: Last Seen At
+        acknowledged_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Acknowledged At
+        resolved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Resolved At
+        resolution:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resolution
+      type: object
+      required:
+      - id
+      - dataset_id
+      - rule_id
+      - status
+      - severity
+      - title
+      - detail
+      - occurrences
+      - first_scan_id
+      - last_scan_id
+      - opened_at
+      - last_seen_at
+      - acknowledged_at
+      - resolved_at
+      - resolution
+      title: IncidentOut
+    Issue:
+      properties:
+        dataset_id:
+          type: string
+          format: uuid
+          title: Dataset Id
+        dataset_name:
+          type: string
+          title: Dataset Name
+        scan_id:
+          type: string
+          format: uuid
+          title: Scan Id
+        check_name:
+          type: string
+          title: Check Name
+        type:
+          type: string
+          title: Type
+        column:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Column
+        severity:
+          type: string
+          title: Severity
+        failed:
+          type: integer
+          title: Failed
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - dataset_id
+      - dataset_name
+      - scan_id
+      - check_name
+      - type
+      - column
+      - severity
+      - failed
+      - message
+      title: Issue
+    LastResult:
+      properties:
+        scan_id:
+          type: string
+          format: uuid
+          title: Scan Id
+        status:
+          type: string
+          title: Status
+        evaluated:
+          type: integer
+          title: Evaluated
+        failed:
+          type: integer
+          title: Failed
+        failed_pct:
+          type: number
+          title: Failed Pct
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - scan_id
+      - status
+      - evaluated
+      - failed
+      - failed_pct
+      - message
+      title: LastResult
+    LoginRequest:
+      properties:
+        email:
+          type: string
+          maxLength: 320
+          pattern: ^[^@\s]+@[^@\s]+\.[^@\s]+$
+          title: Email
+        password:
+          type: string
+          maxLength: 256
+          minLength: 1
+          title: Password
+      type: object
+      required:
+      - email
+      - password
+      title: LoginRequest
+    MemberAdd:
+      properties:
+        email:
+          type: string
+          maxLength: 320
+          pattern: ^[^@\s]+@[^@\s]+\.[^@\s]+$
+          title: Email
+        role:
+          type: string
+          enum:
+          - viewer
+          - editor
+          - owner
+          title: Role
+          default: viewer
+      type: object
+      required:
+      - email
+      title: MemberAdd
+    MemberOut:
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        email:
+          type: string
+          title: Email
+        name:
+          type: string
+          title: Name
+        role:
+          type: string
+          enum:
+          - viewer
+          - editor
+          - owner
+          title: Role
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - user_id
+      - email
+      - name
+      - role
+      - created_at
+      title: MemberOut
+    MemberUpdate:
+      properties:
+        role:
+          type: string
+          enum:
+          - viewer
+          - editor
+          - owner
+          title: Role
+      type: object
+      required:
+      - role
+      title: MemberUpdate
+    MetricSeries:
+      properties:
+        metric:
+          type: string
+          title: Metric
+        key:
+          type: string
+          title: Key
+        points:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Points
+      type: object
+      required:
+      - metric
+      - key
+      - points
+      title: MetricSeries
+    NotificationOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        channel_id:
+          type: string
+          format: uuid
+          title: Channel Id
+        channel_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Channel Name
+        event:
+          type: string
+          title: Event
+        status:
+          type: string
+          title: Status
+        attempts:
+          type: integer
+          title: Attempts
+        last_error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Error
+        sent_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Sent At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - channel_id
+      - event
+      - status
+      - attempts
+      - last_error
+      - sent_at
+      - created_at
+      title: NotificationOut
+    Page_AuditOut_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/AuditOut'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+          description: Pass as ?cursor= to fetch the next page
+      type: object
+      required:
+      - items
+      title: Page[AuditOut]
+    Page_ScanOut_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ScanOut'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+          description: Pass as ?cursor= to fetch the next page
+      type: object
+      required:
+      - items
+      title: Page[ScanOut]
+    PasswordChange:
+      properties:
+        current_password:
+          type: string
+          maxLength: 256
+          minLength: 1
+          title: Current Password
+        new_password:
+          type: string
+          maxLength: 256
+          minLength: 10
+          title: New Password
+      type: object
+      required:
+      - current_password
+      - new_password
+      title: PasswordChange
+    PreviewOut:
+      properties:
+        columns:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Columns
+        rows:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Rows
+      type: object
+      required:
+      - columns
+      - rows
+      title: PreviewOut
+    ProfileOut:
+      properties:
+        scan_id:
+          type: string
+          format: uuid
+          title: Scan Id
+        row_count:
+          type: integer
+          title: Row Count
+        rows_profiled:
+          type: integer
+          title: Rows Profiled
+        sampled:
+          type: boolean
+          title: Sampled
+        ms:
+          type: number
+          title: Ms
+        columns:
+          items:
+            $ref: '#/components/schemas/ColumnProfileOut'
+          type: array
+          title: Columns
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - scan_id
+      - row_count
+      - rows_profiled
+      - sampled
+      - ms
+      - columns
+      - created_at
+      title: ProfileOut
+    ProjectCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Name
+        slug:
+          anyOf:
+          - type: string
+            maxLength: 64
+            pattern: ^[a-z0-9]+(-[a-z0-9]+)*$
+          - type: 'null'
+          title: Slug
+        description:
+          type: string
+          maxLength: 2000
+          title: Description
+          default: ''
+      type: object
+      required:
+      - name
+      title: ProjectCreate
+    ProjectOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        slug:
+          type: string
+          title: Slug
+        description:
+          type: string
+          title: Description
+        sample_size:
+          type: integer
+          title: Sample Size
+        retention_days:
+          type: integer
+          title: Retention Days
+        ai_allow_samples:
+          type: boolean
+          title: Ai Allow Samples
+        anomaly_sensitivity:
+          type: number
+          title: Anomaly Sensitivity
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        role:
+          type: string
+          enum:
+          - viewer
+          - editor
+          - owner
+          title: Role
+          default: viewer
+        datasets:
+          type: integer
+          title: Datasets
+          default: 0
+        score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Score
+      type: object
+      required:
+      - id
+      - name
+      - slug
+      - description
+      - sample_size
+      - retention_days
+      - ai_allow_samples
+      - anomaly_sensitivity
+      - created_at
+      title: ProjectOut
+    ProjectUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 120
+            minLength: 1
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Description
+        sample_size:
+          anyOf:
+          - type: integer
+            maximum: 200.0
+            minimum: 0.0
+          - type: 'null'
+          title: Sample Size
+        retention_days:
+          anyOf:
+          - type: integer
+            maximum: 3650.0
+            minimum: 1.0
+          - type: 'null'
+          title: Retention Days
+        ai_allow_samples:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Ai Allow Samples
+        anomaly_sensitivity:
+          anyOf:
+          - type: number
+            maximum: 10.0
+            minimum: 2.0
+          - type: 'null'
+          title: Anomaly Sensitivity
+      type: object
+      title: ProjectUpdate
+    PublicSettings:
+      properties:
+        site_name:
+          type: string
+          title: Site Name
+        allow_signup:
+          type: boolean
+          title: Allow Signup
+        ai_enabled:
+          type: boolean
+          title: Ai Enabled
+        needs_setup:
+          type: boolean
+          title: Needs Setup
+          default: false
+      type: object
+      required:
+      - site_name
+      - allow_signup
+      - ai_enabled
+      title: PublicSettings
+      description: What the sign-in page needs. No secrets, no AI endpoint.
+    PushRequest:
+      properties:
+        records:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          minItems: 1
+          title: Records
+      type: object
+      required:
+      - records
+      title: PushRequest
+    PushResult:
+      properties:
+        scan:
+          $ref: '#/components/schemas/ScanDetail'
+        records:
+          type: integer
+          title: Records
+        passed:
+          type: boolean
+          title: Passed
+          description: True when no error-severity check failed
+      type: object
+      required:
+      - scan
+      - records
+      - passed
+      title: PushResult
+    QueueInfo:
+      properties:
+        queued:
+          type: integer
+          title: Queued
+        running:
+          type: integer
+          title: Running
+        oldest_queued_s:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Oldest Queued S
+      type: object
+      required:
+      - queued
+      - running
+      - oldest_queued_s
+      title: QueueInfo
+    RestOptions:
+      properties:
+        url:
+          type: string
+          maxLength: 2000
+          minLength: 8
+          title: Url
+        records_path:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Records Path
+      type: object
+      required:
+      - url
+      title: RestOptions
+    ResultOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        check_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Check Id
+        check_name:
+          type: string
+          title: Check Name
+        type:
+          type: string
+          title: Type
+        column:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Column
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+        severity:
+          type: string
+          title: Severity
+        dimension:
+          type: string
+          title: Dimension
+        status:
+          type: string
+          title: Status
+        evaluated:
+          type: integer
+          title: Evaluated
+        failed:
+          type: integer
+          title: Failed
+        failed_pct:
+          type: number
+          title: Failed Pct
+        observed:
+          additionalProperties: true
+          type: object
+          title: Observed
+        sample:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Sample
+        message:
+          type: string
+          title: Message
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        ms:
+          type: number
+          title: Ms
+      type: object
+      required:
+      - id
+      - check_id
+      - check_name
+      - type
+      - column
+      - params
+      - severity
+      - dimension
+      - status
+      - evaluated
+      - failed
+      - failed_pct
+      - observed
+      - sample
+      - message
+      - error
+      - ms
+      title: ResultOut
+    RuleIn:
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Name
+        kind:
+          type: string
+          enum:
+          - check_failed
+          - score_below
+          - anomaly
+          - schema_change
+          - scan_failed
+          title: Kind
+        dataset_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Dataset Id
+        min_severity:
+          type: string
+          enum:
+          - warn
+          - error
+          title: Min Severity
+          default: error
+        threshold:
+          anyOf:
+          - type: number
+            maximum: 100.0
+            minimum: 0.0
+          - type: 'null'
+          title: Threshold
+        channel_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 20
+          title: Channel Ids
+        notify_on_resolve:
+          type: boolean
+          title: Notify On Resolve
+          default: true
+        enabled:
+          type: boolean
+          title: Enabled
+          default: true
+      type: object
+      required:
+      - name
+      - kind
+      title: RuleIn
+    RuleOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        kind:
+          type: string
+          title: Kind
+        dataset_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Dataset Id
+        min_severity:
+          type: string
+          title: Min Severity
+        threshold:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Threshold
+        channel_ids:
+          items:
+            type: string
+          type: array
+          title: Channel Ids
+        notify_on_resolve:
+          type: boolean
+          title: Notify On Resolve
+        enabled:
+          type: boolean
+          title: Enabled
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - name
+      - kind
+      - dataset_id
+      - min_severity
+      - threshold
+      - channel_ids
+      - notify_on_resolve
+      - enabled
+      - created_at
+      title: RuleOut
+    RuleUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 120
+            minLength: 1
+          - type: 'null'
+          title: Name
+        dataset_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Dataset Id
+        min_severity:
+          anyOf:
+          - type: string
+            enum:
+            - warn
+            - error
+          - type: 'null'
+          title: Min Severity
+        threshold:
+          anyOf:
+          - type: number
+            maximum: 100.0
+            minimum: 0.0
+          - type: 'null'
+          title: Threshold
+        channel_ids:
+          anyOf:
+          - items:
+              type: string
+              format: uuid
+            type: array
+            maxItems: 20
+          - type: 'null'
+          title: Channel Ids
+        notify_on_resolve:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Notify On Resolve
+        enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Enabled
+      type: object
+      title: RuleUpdate
+    ScanColumn:
+      properties:
+        name:
+          type: string
+          title: Name
+        type:
+          type: string
+          title: Type
+        native:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Native
+      type: object
+      required:
+      - name
+      - type
+      title: ScanColumn
+    ScanDetail:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        dataset_id:
+          type: string
+          format: uuid
+          title: Dataset Id
+        dataset_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dataset Name
+        status:
+          type: string
+          title: Status
+        trigger:
+          type: string
+          title: Trigger
+        attempt:
+          type: integer
+          title: Attempt
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Started At
+        finished_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Finished At
+        duration_ms:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Duration Ms
+        row_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Row Count
+        score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Score
+        dimension_scores:
+          additionalProperties:
+            type: number
+          type: object
+          title: Dimension Scores
+        checks_total:
+          type: integer
+          title: Checks Total
+        checks_passed:
+          type: integer
+          title: Checks Passed
+        checks_failed:
+          type: integer
+          title: Checks Failed
+        checks_warned:
+          type: integer
+          title: Checks Warned
+        checks_errored:
+          type: integer
+          title: Checks Errored
+        failed_rows:
+          type: integer
+          title: Failed Rows
+        duplicate_rows:
+          type: integer
+          title: Duplicate Rows
+        file_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: File Id
+        columns:
+          items:
+            $ref: '#/components/schemas/ScanColumn'
+          type: array
+          title: Columns
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        cancel_requested:
+          type: boolean
+          title: Cancel Requested
+        results:
+          items:
+            $ref: '#/components/schemas/ResultOut'
+          type: array
+          title: Results
+      type: object
+      required:
+      - id
+      - project_id
+      - dataset_id
+      - status
+      - trigger
+      - attempt
+      - created_at
+      - started_at
+      - finished_at
+      - duration_ms
+      - row_count
+      - score
+      - dimension_scores
+      - checks_total
+      - checks_passed
+      - checks_failed
+      - checks_warned
+      - checks_errored
+      - failed_rows
+      - duplicate_rows
+      - file_id
+      - columns
+      - error
+      - cancel_requested
+      title: ScanDetail
+    ScanOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        dataset_id:
+          type: string
+          format: uuid
+          title: Dataset Id
+        dataset_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dataset Name
+        status:
+          type: string
+          title: Status
+        trigger:
+          type: string
+          title: Trigger
+        attempt:
+          type: integer
+          title: Attempt
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Started At
+        finished_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Finished At
+        duration_ms:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Duration Ms
+        row_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Row Count
+        score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Score
+        dimension_scores:
+          additionalProperties:
+            type: number
+          type: object
+          title: Dimension Scores
+        checks_total:
+          type: integer
+          title: Checks Total
+        checks_passed:
+          type: integer
+          title: Checks Passed
+        checks_failed:
+          type: integer
+          title: Checks Failed
+        checks_warned:
+          type: integer
+          title: Checks Warned
+        checks_errored:
+          type: integer
+          title: Checks Errored
+        failed_rows:
+          type: integer
+          title: Failed Rows
+        duplicate_rows:
+          type: integer
+          title: Duplicate Rows
+        file_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: File Id
+        columns:
+          items:
+            $ref: '#/components/schemas/ScanColumn'
+          type: array
+          title: Columns
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        cancel_requested:
+          type: boolean
+          title: Cancel Requested
+      type: object
+      required:
+      - id
+      - project_id
+      - dataset_id
+      - status
+      - trigger
+      - attempt
+      - created_at
+      - started_at
+      - finished_at
+      - duration_ms
+      - row_count
+      - score
+      - dimension_scores
+      - checks_total
+      - checks_passed
+      - checks_failed
+      - checks_warned
+      - checks_errored
+      - failed_rows
+      - duplicate_rows
+      - file_id
+      - columns
+      - error
+      - cancel_requested
+      title: ScanOut
+    ScanRequest:
+      properties:
+        idempotency_key:
+          anyOf:
+          - type: string
+            maxLength: 128
+          - type: 'null'
+          title: Idempotency Key
+        profile:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Profile
+          description: Profile columns too (defaults to the dataset's setting)
+      type: object
+      title: ScanRequest
+    ServerConnection:
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Name
+        kind:
+          type: string
+          enum:
+          - postgresql
+          - mysql
+          - mssql
+          title: Kind
+        host:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Host
+        port:
+          anyOf:
+          - type: integer
+            maximum: 65535.0
+            minimum: 1.0
+          - type: 'null'
+          title: Port
+        database:
+          type: string
+          maxLength: 128
+          minLength: 1
+          title: Database
+        username:
+          type: string
+          maxLength: 128
+          minLength: 1
+          title: Username
+        password:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Password
+        ssl_mode:
+          type: string
+          enum:
+          - disable
+          - prefer
+          - require
+          - verify-full
+          title: Ssl Mode
+          default: prefer
+        default_schema:
+          anyOf:
+          - type: string
+            maxLength: 128
+          - type: 'null'
+          title: Default Schema
+        max_concurrent_scans:
+          type: integer
+          maximum: 20.0
+          minimum: 1.0
+          title: Max Concurrent Scans
+          default: 2
+      type: object
+      required:
+      - name
+      - kind
+      - host
+      - database
+      - username
+      title: ServerConnection
+      description: 'A database server. The password is write-only: it is sealed and never returned.'
+    SessionOut:
+      properties:
+        user:
+          anyOf:
+          - $ref: '#/components/schemas/UserOut'
+          - type: 'null'
+      type: object
+      required:
+      - user
+      title: SessionOut
+    SettingsUpdate:
+      properties:
+        site_name:
+          anyOf:
+          - type: string
+            maxLength: 80
+            minLength: 1
+          - type: 'null'
+          title: Site Name
+        allow_signup:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Allow Signup
+        ai_enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Ai Enabled
+        ai_base_url:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Ai Base Url
+        ai_model:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Ai Model
+        ai_api_key:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Ai Api Key
+      type: object
+      title: SettingsUpdate
+    Severity:
+      type: string
+      enum:
+      - warn
+      - error
+      title: Severity
+    ShapeCount:
+      properties:
+        shape:
+          type: string
+          title: Shape
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - shape
+      - count
+      title: ShapeCount
+    SignInOut:
+      properties:
+        user:
+          $ref: '#/components/schemas/UserOut'
+        session_token:
+          type: string
+          title: Session Token
+          description: Bearer token for API clients; browsers use the cookie
+        expires_in_s:
+          type: integer
+          title: Expires In S
+      type: object
+      required:
+      - user
+      - session_token
+      - expires_in_s
+      title: SignInOut
+    SignupRequest:
+      properties:
+        email:
+          type: string
+          maxLength: 320
+          pattern: ^[^@\s]+@[^@\s]+\.[^@\s]+$
+          title: Email
+        name:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Name
+        password:
+          type: string
+          maxLength: 256
+          minLength: 1
+          title: Password
+      type: object
+      required:
+      - email
+      - name
+      - password
+      title: SignupRequest
+    SuggestionOut:
+      properties:
+        key:
+          type: string
+          title: Key
+        type:
+          type: string
+          title: Type
+        column:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Column
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+        severity:
+          type: string
+          title: Severity
+        reason:
+          type: string
+          title: Reason
+        exists:
+          type: boolean
+          title: Exists
+          default: false
+      type: object
+      required:
+      - key
+      - type
+      - column
+      - params
+      - severity
+      - reason
+      title: SuggestionOut
+    SystemInfo:
+      properties:
+        version:
+          type: string
+          title: Version
+        environment:
+          type: string
+          title: Environment
+        storage:
+          type: string
+          title: Storage
+        key_mode:
+          type: string
+          title: Key Mode
+        cache:
+          type: string
+          title: Cache
+        mail:
+          type: string
+          title: Mail
+        redis:
+          type: boolean
+          title: Redis
+        queue:
+          $ref: '#/components/schemas/QueueInfo'
+        projects:
+          type: integer
+          title: Projects
+        datasets:
+          type: integer
+          title: Datasets
+        users:
+          type: integer
+          title: Users
+        scans:
+          type: integer
+          title: Scans
+      type: object
+      required:
+      - version
+      - environment
+      - storage
+      - key_mode
+      - cache
+      - mail
+      - redis
+      - queue
+      - projects
+      - datasets
+      - users
+      - scans
+      title: SystemInfo
+    TableOut:
+      properties:
+        schema_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema Name
+        name:
+          type: string
+          title: Name
+        kind:
+          type: string
+          title: Kind
+      type: object
+      required:
+      - schema_name
+      - name
+      - kind
+      title: TableOut
+    TestResult:
+      properties:
+        ok:
+          type: boolean
+          title: Ok
+        message:
+          type: string
+          title: Message
+        server_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Server Version
+        tables:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Tables
+        ms:
+          type: number
+          title: Ms
+      type: object
+      required:
+      - ok
+      - message
+      - ms
+      title: TestResult
+    Tolerance:
+      properties:
+        max_count:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Max Count
+        max_percent:
+          anyOf:
+          - type: number
+            maximum: 100.0
+            minimum: 0.0
+          - type: 'null'
+          title: Max Percent
+      additionalProperties: false
+      type: object
+      title: Tolerance
+      description: 'How many failing rows are still a pass: a count, a percent of evaluated rows, or
+
+        both (the check passes only within both). Zero by default: any failure fails.'
+    TrendPoint:
+      properties:
+        day:
+          type: string
+          title: Day
+        score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Score
+        failed_checks:
+          type: integer
+          title: Failed Checks
+        scans:
+          type: integer
+          title: Scans
+      type: object
+      required:
+      - day
+      - score
+      - failed_checks
+      - scans
+      title: TrendPoint
+    UserCreate:
+      properties:
+        email:
+          type: string
+          maxLength: 320
+          pattern: ^[^@\s]+@[^@\s]+\.[^@\s]+$
+          title: Email
+        name:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Name
+        role:
+          type: string
+          enum:
+          - admin
+          - user
+          title: Role
+          default: user
+        password:
+          type: string
+          maxLength: 256
+          minLength: 10
+          title: Password
+      type: object
+      required:
+      - email
+      - name
+      - password
+      title: UserCreate
+    UserOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        email:
+          type: string
+          title: Email
+        name:
+          type: string
+          title: Name
+        role:
+          type: string
+          title: Role
+        disabled:
+          type: boolean
+          title: Disabled
+        last_login_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Login At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - email
+      - name
+      - role
+      - disabled
+      - last_login_at
+      - created_at
+      title: UserOut
+    UserUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 200
+            minLength: 1
+          - type: 'null'
+          title: Name
+        role:
+          anyOf:
+          - type: string
+            enum:
+            - admin
+            - user
+          - type: 'null'
+          title: Role
+        disabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Disabled
+      type: object
+      title: UserUpdate
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    ValueCount:
+      properties:
+        value:
+          title: Value
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - value
+      - count
+      title: ValueCount
+    YamlIn:
+      properties:
+        yaml:
+          type: string
+          maxLength: 1000000
+          minLength: 1
+          title: Yaml
+        prune:
+          type: boolean
+          title: Prune
+          default: false
+      type: object
+      required:
+      - yaml
+      title: YamlIn
+servers:
+- url: http://localhost:4930
+  description: Local (make up)

@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600" role="img" aria-labelledby="t d">
+  <title id="t">DataQuality architecture</title>
+  <desc id="d">The browser loads the Next.js web app, which proxies the FastAPI API; CI jobs and applications call the API with project API keys. The API keeps everything in Postgres, including the scan queue, uses Redis optionally for rate limits and the dashboard cache, object storage for uploaded files, KMS to seal credentials, and an optional OpenAI compatible model. Scan workers claim scans from Postgres, run checks as read-only SQL inside the customer's databases or in DuckDB for files, REST and pushed records, write results back to Postgres, and send alerts by email, Slack and signed webhooks.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#475569"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1d64c8"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#148a60"/></marker>
+  </defs>
+  <rect width="1200" height="600" rx="16" fill="#f8fafc"/>
+  <g font-family="Inter, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#0f172a">
+    <!-- people and pipelines -->
+    <rect x="40" y="190" width="170" height="90" rx="12" fill="#e2e8f0"/>
+    <text x="125" y="226" text-anchor="middle" font-weight="650">Browser</text>
+    <text x="125" y="248" text-anchor="middle" fill="#475569" font-size="13">dashboard, profiles,</text>
+    <text x="125" y="265" text-anchor="middle" fill="#475569" font-size="13">checks, incidents</text>
+
+    <rect x="40" y="340" width="170" height="90" rx="12" fill="#e2e8f0"/>
+    <text x="125" y="376" text-anchor="middle" font-weight="650">CI and apps</text>
+    <text x="125" y="398" text-anchor="middle" fill="#475569" font-size="13">dq CLI, API keys,</text>
+    <text x="125" y="415" text-anchor="middle" fill="#475569" font-size="13">pushed records</text>
+
+    <rect x="260" y="190" width="170" height="90" rx="12" fill="#dbeafe"/>
+    <text x="345" y="226" text-anchor="middle" font-weight="650">web</text>
+    <text x="345" y="248" text-anchor="middle" fill="#475569" font-size="13">Next.js 15</text>
+    <text x="345" y="265" text-anchor="middle" fill="#475569" font-size="13">proxies /api</text>
+
+    <!-- api -->
+    <rect x="480" y="170" width="200" height="130" rx="12" fill="#bfdbfe"/>
+    <text x="580" y="208" text-anchor="middle" font-weight="650">api</text>
+    <text x="580" y="232" text-anchor="middle" fill="#1e3a5f" font-size="13">FastAPI: projects,</text>
+    <text x="580" y="250" text-anchor="middle" fill="#1e3a5f" font-size="13">datasets, checks, scans,</text>
+    <text x="580" y="268" text-anchor="middle" fill="#1e3a5f" font-size="13">alerts, reports</text>
+    <text x="580" y="288" text-anchor="middle" fill="#1e3a5f" font-size="12">stateless, N replicas</text>
+
+    <!-- top band: shared services -->
+    <rect x="480" y="40" width="150" height="70" rx="12" fill="#f1f5f9"/>
+    <text x="555" y="70" text-anchor="middle" font-weight="650">Redis</text>
+    <text x="555" y="91" text-anchor="middle" fill="#475569" font-size="12">optional: limits, cache</text>
+    <rect x="650" y="40" width="150" height="70" rx="12" fill="#e0e7ff"/>
+    <text x="725" y="70" text-anchor="middle" font-weight="650">Object storage</text>
+    <text x="725" y="91" text-anchor="middle" fill="#475569" font-size="12">files, versions, batches</text>
+    <rect x="820" y="40" width="150" height="70" rx="12" fill="#e0e7ff"/>
+    <text x="895" y="70" text-anchor="middle" font-weight="650">KMS</text>
+    <text x="895" y="91" text-anchor="middle" fill="#475569" font-size="12">seals credentials</text>
+    <rect x="990" y="40" width="170" height="70" rx="12" fill="#f1f5f9"/>
+    <text x="1075" y="70" text-anchor="middle" font-weight="650">AI (optional)</text>
+    <text x="1075" y="91" text-anchor="middle" fill="#475569" font-size="12">OpenAI compatible, off</text>
+
+    <!-- postgres -->
+    <rect x="760" y="190" width="200" height="110" rx="12" fill="#e0e7ff"/>
+    <text x="860" y="226" text-anchor="middle" font-weight="650">Postgres</text>
+    <text x="860" y="250" text-anchor="middle" fill="#475569" font-size="13">app data, scan queue,</text>
+    <text x="860" y="268" text-anchor="middle" fill="#475569" font-size="13">results, history, outbox</text>
+
+    <!-- alerts -->
+    <rect x="990" y="190" width="170" height="110" rx="12" fill="#fde5d9"/>
+    <text x="1075" y="226" text-anchor="middle" font-weight="650">Alerts</text>
+    <text x="1075" y="250" text-anchor="middle" fill="#7a3416" font-size="13">email, Slack,</text>
+    <text x="1075" y="268" text-anchor="middle" fill="#7a3416" font-size="13">signed webhooks</text>
+
+    <!-- worker -->
+    <rect x="480" y="370" width="200" height="190" rx="12" fill="#1d64c8"/>
+    <text x="580" y="404" text-anchor="middle" font-weight="650" fill="#ffffff">scan workers</text>
+    <text x="580" y="425" text-anchor="middle" fill="#dbeafe" font-size="13">N replicas, leased scans</text>
+    <rect x="498" y="440" width="164" height="50" rx="8" fill="#174f9e"/>
+    <text x="580" y="461" text-anchor="middle" fill="#ffffff" font-size="13">check engine</text>
+    <text x="580" y="479" text-anchor="middle" fill="#bfdbfe" font-size="12">SQL per dialect, exact</text>
+    <rect x="498" y="498" width="164" height="46" rx="8" fill="#174f9e"/>
+    <text x="580" y="517" text-anchor="middle" fill="#ffffff" font-size="13">scheduler, reaper,</text>
+    <text x="580" y="534" text-anchor="middle" fill="#bfdbfe" font-size="12">notifications, retention</text>
+
+    <!-- sources -->
+    <rect x="760" y="370" width="400" height="190" rx="12" fill="#dcf3e8"/>
+    <text x="960" y="402" text-anchor="middle" font-weight="650">Your sources, read only</text>
+    <rect x="780" y="418" width="84" height="34" rx="8" fill="#ffffff"/>
+    <text x="822" y="440" text-anchor="middle" font-size="13">PostgreSQL</text>
+    <rect x="874" y="418" width="84" height="34" rx="8" fill="#ffffff"/>
+    <text x="916" y="440" text-anchor="middle" font-size="13">MySQL</text>
+    <rect x="968" y="418" width="88" height="34" rx="8" fill="#ffffff"/>
+    <text x="1012" y="440" text-anchor="middle" font-size="13">SQL Server</text>
+    <rect x="1066" y="418" width="74" height="34" rx="8" fill="#ffffff"/>
+    <text x="1103" y="440" text-anchor="middle" font-size="13">SQLite</text>
+    <rect x="780" y="466" width="360" height="74" rx="8" fill="#bfe8d4"/>
+    <text x="960" y="492" text-anchor="middle" font-size="13">files, REST and pushed records:</text>
+    <text x="960" y="512" text-anchor="middle" font-size="13">loaded into DuckDB inside the worker,</text>
+    <text x="960" y="530" text-anchor="middle" font-size="13">outside access switched off</text>
+  </g>
+  <g stroke="#475569" stroke-width="2" fill="none">
+    <path d="M210 235H252" marker-end="url(#a)"/>
+    <path d="M430 235H472" marker-end="url(#a)"/>
+    <path d="M210 385C330 385 400 310 472 292" marker-end="url(#a)"/>
+    <path d="M555 170V118" marker-end="url(#a)"/>
+    <path d="M630 170L715 118" marker-end="url(#a)"/>
+    <path d="M670 172C760 150 840 130 880 118" marker-end="url(#a)"/>
+    <path d="M680 178C800 160 980 150 1050 118" marker-end="url(#a)"/>
+    <path d="M680 245H752" marker-end="url(#a)"/>
+  </g>
+  <g stroke="#1d64c8" stroke-width="2.5" fill="none">
+    <path d="M640 370C660 330 760 336 812 308" marker-end="url(#b)"/>
+    <path d="M680 392C800 350 1000 350 1070 308" marker-end="url(#b)"/>
+  </g>
+  <g stroke="#148a60" stroke-width="2.5" fill="none">
+    <path d="M680 470H752" marker-end="url(#g)"/>
+  </g>
+  <g font-family="Inter, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="12">
+    <text x="716" y="460" text-anchor="middle" fill="#148a60">SELECT</text>
+    <text x="760" y="344" text-anchor="middle" fill="#1d64c8">claim, lease, results</text>
+  </g>
+</svg>
