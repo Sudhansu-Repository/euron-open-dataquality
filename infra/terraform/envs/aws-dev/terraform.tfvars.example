@@ -1,0 +1,27 @@
+# Copy to terraform.tfvars (git-ignored) and replace every placeholder.
+region      = "us-east-1"
+name_prefix = "acme-dataquality-dev" # the objects bucket name derives from this: make it globally unique
+
+hostname        = "dq-dev.example.com"
+certificate_arn = "<ACM_CERTIFICATE_ARN>"     # same region, covering hostname
+route53_zone_id = "<ROUTE53_HOSTED_ZONE_ID>" # or remove and CNAME hostname to load_balancer_dns_name
+
+# Alert mail (SES). New accounts start in the SES sandbox: request production access.
+mail_domain       = "dq-dev.example.com"
+mail_from_address = "alerts@dq-dev.example.com"
+
+# The image tag pushed to the ecr_repositories output (git commit or release).
+image_tag = "0.1.0"
+
+# alarm_email             = "oncall@example.com"
+# metrics_allowed_cidrs   = ["203.0.113.10/32"] # your Prometheus egress address
+# scan_failure_threshold  = 10
+
+# The databases DataQuality scans (default: anywhere). Restrict to your networks:
+# source_cidrs = ["10.20.0.0/16", "198.51.100.7/32"]
+
+# A self-hosted AI model inside the VPC (Ollama, vLLM) on a port other than 443:
+# ai_egress = [{ cidr = "10.0.0.0/16", port = 11434 }]
+
+# Extra non-secret settings (see docs/guides/configuration.md).
+# api_extra_environment = { WORKER_CONCURRENCY = "8", DUCKDB_MEMORY_LIMIT = "3GB" }
