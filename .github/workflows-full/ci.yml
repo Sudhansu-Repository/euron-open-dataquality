@@ -1,0 +1,112 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sanitize:
+    name: sanitization and OpenAPI drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/check-sanitization.sh
+      - uses: astral-sh/setup-uv@v6
+      - name: OpenAPI reference matches the app
+        working-directory: apps/api
+        run: uv sync --frozen && uv run pytest tests/unit/system/test_openapi_drift.py -q
+
+  integration:
+    name: integration tests (Postgres 16, Redis 7, Floci, source PostgreSQL and MySQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      # The app's own database and cache.
+      postgres:
+        image: postgres:16.10-alpine
+        env:
+          POSTGRES_USER: dataquality
+          POSTGRES_PASSWORD: dataquality
+          POSTGRES_DB: dataquality
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dataquality"
+          --health-interval 3s --health-timeout 3s --health-retries 30
+      redis:
+        image: redis:7.4.6-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 3s --health-retries 30
+      # The databases DataQuality scans: a second PostgreSQL and a MySQL 8.4. The admin
+      # password is a throwaway for these CI-only containers.
+      source-postgres:
+        image: postgres:16.10-alpine
+        env:
+          POSTGRES_USER: warehouse_admin
+          POSTGRES_PASSWORD: ci-source-admin-pass
+          POSTGRES_DB: warehouse
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U warehouse_admin -d warehouse"
+          --health-interval 3s --health-timeout 3s --health-retries 30
+      source-mysql:
+        image: mysql:8.4.6
+        env:
+          MYSQL_ROOT_PASSWORD: ci-source-admin-pass
+          MYSQL_DATABASE: shop
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval 3s --health-timeout 3s --health-retries 60
+      # S3, KMS and Secrets Manager for the KMS and S3 backend run.
+      floci:
+        image: floci/floci:2.3.0
+        env:
+          FLOCI_HOSTNAME: localhost
+        ports: ["4566:4566"]
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://dataquality:dataquality@localhost:5432/dataquality_test
+      TEST_REDIS_URL: redis://localhost:6379/15
+      TEST_SOURCE_ADMIN_PASSWORD: ci-source-admin-pass
+      DQ_SOURCE_PG_PORT: "5433"
+      DQ_SOURCE_MYSQL_PORT: "3306"
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv python install 3.12 && uv sync --frozen
+      # Default backends (local keys, local disk), with the 85% coverage floor.
+      - run: uv run pytest tests/unit tests/integration -q --cov=dataquality --cov-report=term-missing:skip-covered --cov-fail-under=85
+      # The bucket, the KMS key and alias/dataquality-local, exactly as `make up` does.
+      - name: Apply local-floci Terraform to the emulator
+        working-directory: .
+        run: |
+          docker run --rm --network host --add-host 000000000000.localhost:127.0.0.1 \
+            -v "$PWD/infra:/infra" -w /infra/terraform/envs/local-floci hashicorp/terraform:1.16.6 \
+            init -input=false -no-color
+          docker run --rm --network host --add-host 000000000000.localhost:127.0.0.1 \
+            -v "$PWD/infra:/infra" -w /infra/terraform/envs/local-floci hashicorp/terraform:1.16.6 \
+            apply -input=false -no-color -auto-approve -var endpoint=http://localhost:4566
+      # The same suite with AWS KMS sealing and S3 storage (make test-matrix runs all four).
+      - name: Integration tests on KMS and S3 (Floci)
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_REGION: us-east-1
+          TEST_AWS_ENDPOINT: http://localhost:4566
+          TEST_KEY_MODE: kms
+          TEST_STORAGE: s3
+          TEST_DATABASE_URL: postgresql+asyncpg://dataquality:dataquality@localhost:5432/dataquality_test_kms_s3
+          TEST_REDIS_URL: redis://localhost:6379/14
+        run: uv run pytest tests/integration -q -p no:warnings -rf
